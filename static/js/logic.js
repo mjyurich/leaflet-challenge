@@ -1,8 +1,5 @@
-var earthquakesURL = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson";
-
-var earthquakes = L.layergroup();
-
-var grayscaleMap = L.tileLayer("https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}", {
+//Create tile layer for background map
+var grayMap = L.tileLayer("https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}", {
     attribution: "© <a href='https://www.mapbox.com/about/maps/'>Mapbox</a> © <a href='http://www.openstreetmap.org/copyright'>OpenStreetMap</a> <strong><a href='https://www.mapbox.com/map-feedback/' target='_blank'>Improve this map</a></strong>",
     tileSize: 512,
     maxZoom: 18,
@@ -11,19 +8,33 @@ var grayscaleMap = L.tileLayer("https://api.mapbox.com/styles/v1/{id}/tiles/{z}/
     accessToken: API_KEY
 });
 
-var myMap = L.myMap("mapid", {
+//Create map object
+var map = L.map("map", {
     center: [
         37.09, -95.71
     ],
-    zoom: 2,
-    layers:[grayscaleMap, earthquakes]
+    zoom: 3,
 }),
 
-d3.json(earthquakesURL, function(earthquakeData) {
-    function markerSize(magnitude) {
-        return magnitude * 4;
-    };
-      function chooseColor(depth) {
+//Add graymap tile layer to map
+grayMap.addTo(map);
+
+//Retrieve earthquake GeoJSON data
+d3.json("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson").then(function(data) {
+    function styleInfo(feature) {
+        return {
+          opacity: 1,
+          fillOpacity: 1,
+          fillColor: getColor(feature.geometry.coordinates[2]),
+          color: "#000000",
+          radius: getRadius(feature.properties.mag),
+          stroke: true,
+          weight: 0.5
+        };
+    }
+
+    //Determine color of marker based on the magnitude of the earthquake
+    function getColor(depth) {
         switch(true) {
             case depth > 90:
                 return "red";
@@ -40,38 +51,58 @@ d3.json(earthquakesURL, function(earthquakeData) {
         }
     }
 
-    L.geoJSON(earthquakeData, {
-        pointToLayer: function(feature, latlng) {
-            return L.circleMarker(latlng,
-                {
-                    radius: markerSize(feature.properties.mag),
-                    fillColor: chooseColor(feature.geometry.coordinates[2]),
-                    fillOpacity: 0.7,
-                    color: "black",
-                    stroke: true,
-                    weight: 0.5
-                }
-            );
-        },
-        onEachFeature: function(feature, layer) {
-            layer.bindPopup("<h3>Location: " + feature.properties.place + "</h3><hr><p>Date: "
-            + new Date(feature.properties.time) + "</p><hr><p>Magnitude: " + feature.properties.mag + "</p>")
+    //Determine the radius of the earthquake marker based on magnitude
+    function getRadius(magnitude) {
+        if (magnitude === 0) {
+            return 1;
         }
-    }).addTo(earthquakes);
-    earthquakes.addTo(myMap);
 
+        return magnitude * 4;
+    }
+
+    //Add GeoJSON layer to the map
+    L.geoJSON(data, {
+        pointToLayer: function(feature, latlng) {
+            return L.circleMarker(latlng);
+        },
+                
+        style: styleInfo,
+        
+        //Create popup for each marker to display magnitude and location
+        onEachFeature: function(feature, layer) {
+            layer.bindPopup("Magnitude: "
+            + feature.properties.mag
+            + "<br>Depth: "
+            + feature.geometry.coordinates[2]
+            + "<br>Location: "
+            + feature.properties.place
+        );
+      }
+    }).addTo(myMap);
+  
+    //Legend control object
     var legend = L.control({position: "bottomright"});
+    
+    //Legend Details
     legend.onAdd = function() {
         var div = L.DomUtil.create("div", "info legend"),
-        depth = [-10, 10, 30, 50, 70, 90];
+        grades = [-10, 10, 30, 50, 70, 90];
+        var colors = ["red",
+        "orangered",
+        "orange",
+        "gold",
+        "yellow",
+        "lightgreen"
+        ];
 
-        div.innerHTML += "<h3 style='text-align: center'>Depth</h3>"
-    for (var i =0; i < depth.length; i++) {
-        div.innerHTML += 
-        '<i style="background:' + chooseColor(depth[i] + 1) + '"></i> ' +
-            depth[i] + (depth[i + 1] ? '&ndash;' + depth[i + 1] + '<br>' : '+');
+    
+        for (var i =0; i < depth.length; i++) {
+            div.innerHTML += "<i style='background: " + colors[i] + "'></i> "
+            + grades[i] + (grades[i + 1] ? "&ndash;" + grades[i + 1] + "<br>" : "+");
         }
         return div;
     };
-    legend.addTo(myMap);
+
+    //Add legend to the map
+    legend.addTo(map);
 });
