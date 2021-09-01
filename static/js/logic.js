@@ -14,9 +14,8 @@ var map = L.map("map", {
         37.09, -95.71
     ],
     zoom: 3,
-}),
+})
 
-//Add graymap tile layer to map
 grayMap.addTo(map);
 
 //Retrieve earthquake GeoJSON data
@@ -35,7 +34,7 @@ d3.json("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geoj
 
     //Determine color of marker based on the magnitude of the earthquake
     function getColor(depth) {
-        switch(true) {
+        switch (true) {
             case depth > 90:
                 return "red";
             case depth > 70:
@@ -78,7 +77,7 @@ d3.json("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geoj
             + feature.properties.place
         );
       }
-    }).addTo(myMap);
+    }).addTo(map);
   
     //Legend control object
     var legend = L.control({position: "bottomright"});
